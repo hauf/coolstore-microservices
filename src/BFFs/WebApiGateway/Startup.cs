@@ -8,7 +8,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.ReverseProxy.Abstractions;
 using Microsoft.ReverseProxy.Service;
-using N8T.Infrastructure.Logging;
 using N8T.Infrastructure.OTel;
 using N8T.Infrastructure.Tye;
 
@@ -22,7 +21,6 @@ namespace WebApiGateway
         }
 
         private IConfiguration Config { get; }
-        private bool IsRunOnTye => Config.IsRunOnTye();
 
         public void ConfigureServices(IServiceCollection services)
         {
@@ -36,8 +34,10 @@ namespace WebApiGateway
                 });
             });
 
+            var isRunOnTye = Config.IsRunOnTye("inventoryapp");
+
             // inventory
-            var inventoryUrl = IsRunOnTye
+            var inventoryUrl = isRunOnTye
                 ? $"{Config.GetServiceUri("inventoryapp")?.AbsoluteUri}"
                 : Config.GetValue<string>("Services:inventoryapp");
 
@@ -70,7 +70,7 @@ namespace WebApiGateway
             };
 
             // product catalog
-            var productCatalogUrl = IsRunOnTye
+            var productCatalogUrl = isRunOnTye
                 ? $"{Config.GetServiceUri("productcatalogapp")?.AbsoluteUri}"
                 : Config.GetValue<string>("Services:productcatalogapp");
 
@@ -103,7 +103,7 @@ namespace WebApiGateway
             };
 
             // shopping cart
-            var shoppingCartUrl = IsRunOnTye
+            var shoppingCartUrl = isRunOnTye
                 ? $"{Config.GetServiceUri("shoppingcartapp")?.AbsoluteUri}"
                 : Config.GetValue<string>("Services:shoppingcartapp");
 
@@ -137,7 +137,7 @@ namespace WebApiGateway
 
 
             // sale
-            var saleUrl = IsRunOnTye
+            var saleUrl = isRunOnTye
                 ? $"{Config.GetServiceUri("saleapp")?.AbsoluteUri}"
                 : Config.GetValue<string>("Services:saleapp");
 
@@ -202,7 +202,7 @@ namespace WebApiGateway
             services.AddCustomOtelWithZipkin(Config,
                 o =>
                 {
-                    o.Endpoint = IsRunOnTye
+                    o.Endpoint = isRunOnTye
                         ? new Uri($"http://{Config.GetServiceUri("zipkin")?.DnsSafeHost}:9411/api/v2/spans")
                         : o.Endpoint;
                 });
@@ -248,8 +248,6 @@ namespace WebApiGateway
                     proxyPipeline.UseRequestAffinitizer();
                 });
             });
-
-            app.ApplicationServices.CreateLoggerConfiguration(IsRunOnTye);
         }
     }
 }

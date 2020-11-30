@@ -9,7 +9,6 @@ using N8T.Infrastructure;
 using N8T.Infrastructure.Auth;
 using N8T.Infrastructure.Dapr;
 using N8T.Infrastructure.EfCore;
-using N8T.Infrastructure.Logging;
 using N8T.Infrastructure.OTel;
 using N8T.Infrastructure.Tye;
 using N8T.Infrastructure.Validator;
@@ -29,10 +28,11 @@ namespace ProductCatalogService.Api
 
         private IConfiguration Config { get; }
         private IWebHostEnvironment Env { get; }
-        private bool IsRunOnTye => Config.IsRunOnTye();
 
         public void ConfigureServices(IServiceCollection services)
         {
+            var isRunOnTye = Config.IsRunOnTye("identityservice");
+
             services.AddHttpContextAccessor()
                 .AddCustomMediatR<Anchor>()
                 .AddCustomValidators<Anchor>()
@@ -46,19 +46,19 @@ namespace ProductCatalogService.Api
 
             services.AddCustomAuth<Anchor>(Config, options =>
             {
-                options.Authority = IsRunOnTye
-                    ? Config.GetServiceUri("identityapp")?.AbsoluteUri
+                options.Authority = isRunOnTye
+                    ? Config.GetServiceUri("identityservice")?.AbsoluteUri
                     : options.Authority;
 
-                options.Audience = IsRunOnTye
-                    ? $"{Config.GetServiceUri("identityapp")?.AbsoluteUri.TrimEnd('/')}/resources"
+                options.Audience = isRunOnTye
+                    ? $"{Config.GetServiceUri("identityservice")?.AbsoluteUri.TrimEnd('/')}/resources"
                     : options.Audience;
             });
 
             services.AddCustomOtelWithZipkin(Config,
                 o =>
                 {
-                    o.Endpoint = IsRunOnTye
+                    o.Endpoint = isRunOnTye
                         ? new Uri($"http://{Config.GetServiceUri("zipkin")?.DnsSafeHost}:9411/api/v2/spans")
                         : o.Endpoint;
                 });
@@ -89,8 +89,6 @@ namespace ProductCatalogService.Api
                 endpoints.MapControllers();
                 endpoints.MapSubscribeHandler();
             });
-
-            app.ApplicationServices.CreateLoggerConfiguration(IsRunOnTye);
         }
     }
 }
